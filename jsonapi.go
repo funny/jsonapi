@@ -3,6 +3,7 @@ package jsonapi
 import (
 	"bytes"
 	"crypto"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -144,10 +145,9 @@ func (ctx *Context) Request(req interface{}) {
 }
 
 func (ctx *Context) Verify(key string, timeout int) {
-	var timeStr string
+	timeStr := ctx.request.Header.Get("t")
 
 	if timeout > 0 {
-		timeStr = ctx.request.Header.Get("t")
 		timeVal, err := strconv.Atoi(timeStr)
 		if err != nil {
 			ctx.Fatal("HTTP header 't' not a number", err)
@@ -162,11 +162,15 @@ func (ctx *Context) Verify(key string, timeout int) {
 			ctx.Fatal("ctx.msg == nil")
 		}
 		signature := ctx.request.Header.Get("s")
+		sigData, err := base64.StdEncoding.DecodeString(signature)
+		if err != nil {
+			ctx.Fatal("HTTP header 's' not base64 string", err)
+		}
 		hash := ctx.hash.New()
 		hash.Write([]byte(key))
 		hash.Write([]byte(timeStr))
 		hash.Write(ctx.msg)
-		if !bytes.Equal([]byte(signature), hash.Sum(nil)) {
+		if !bytes.Equal([]byte(sigData), hash.Sum(nil)) {
 			ctx.Fatal("Signature validate failed")
 		}
 	}
