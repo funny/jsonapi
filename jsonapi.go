@@ -56,39 +56,39 @@ func (f HandlerFunc) ServeJSON(ctx *Context) interface{} {
 	return f(ctx)
 }
 
-var _ http.Handler = (*App)(nil)
+var _ http.Handler = (*API)(nil)
 
-type App struct {
+type API struct {
 	mux    *http.ServeMux
 	hash   crypto.Hash
 	logger Logger
 }
 
-func NewApp(hash crypto.Hash, logger Logger) *App {
-	return &App{
+func New(hash crypto.Hash, logger Logger) *API {
+	return &API{
 		hash:   hash,
 		logger: logger,
 	}
 }
 
-func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	app.mux.ServeHTTP(w, r)
+func (api *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	api.mux.ServeHTTP(w, r)
 }
 
-func (app *App) HandleFunc(path string, handler func(ctx *Context) interface{}) {
-	app.Handle(path, HandlerFunc(handler))
+func (api *API) HandleFunc(path string, handler func(ctx *Context) interface{}) {
+	api.Handle(path, HandlerFunc(handler))
 }
 
-func (app *App) Handle(path string, handler Handler) {
-	app.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+func (api *API) Handle(path string, handler Handler) {
+	api.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil && err != FatalError {
-				app.logger.Panic(r, err)
+				api.logger.Panic(r, err)
 				http.Error(w, `{"error":"unknow"}`, 500)
 			}
 		}()
 
-		ctx := Context{hash: app.hash, logger: app.logger, response: w, request: r}
+		ctx := Context{hash: api.hash, logger: api.logger, response: w, request: r}
 
 		rsp := handler.ServeJSON(&ctx)
 
