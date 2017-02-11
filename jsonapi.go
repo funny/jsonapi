@@ -169,6 +169,7 @@ func (ctx *Context) Verify(key string, timeout int) {
 		hash := ctx.hash.New()
 		hash.Write([]byte(key))
 		hash.Write([]byte(timeStr))
+		hash.Write([]byte(ctx.request.URL.Path))
 		hash.Write(ctx.msg)
 		if !bytes.Equal([]byte(sigData), hash.Sum(nil)) {
 			ctx.Fatal("Signature validate failed")

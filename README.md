@@ -34,15 +34,13 @@ http.ListenAndServe(":8080", app)
 
 防回放机制支持有效期验证和请求参数签名验证。
 
-这套机制的基本算法是：hash(key + time + json)
+这套机制的基本算法是：hash(key + time + path + json)
 
-其中hash算法可以在App实例化时指定，time为客户端通过HTTP头告诉服务端的请求签名时间，json为请求内容。
+其中hash算法可以在App实例化时指定；time为客户端通过HTTP头告诉服务端的请求签名时间；path为当前请求的路径；json为请求内容。
 
-客户端通过HTTP头`t`，告知服务端请求签名时间，这个时间为unix时间（UTC时区）。
+客户端通过HTTP头`t`告知服务端请求签名时间，这个时间为unix时间（UTC时区）；通过HTTP头`s`告知服务端请求签名。
 
-客户端通过HTTP头`s`，告知服务端请求签名。
-
-API通过调用`ctx.Verify(key, timeout)`来验证请求有消息，此调用必须在`ctx.Request()`调用之后。
+服务端通过调用`ctx.Verify(key, timeout)`来验证请求有消息，此调用必须在`ctx.Request()`调用之后。
 
 传入`Verify`方法的`key`为空字符串时，框架不验证请求签名。
 
