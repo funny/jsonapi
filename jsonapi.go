@@ -68,6 +68,7 @@ func New(hash crypto.Hash, logger Logger) *API {
 	return &API{
 		hash:   hash,
 		logger: logger,
+		mux:    http.NewServeMux(),
 	}
 }
 

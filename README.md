@@ -11,22 +11,22 @@
 用法
 ====
 
-基本用法：
+示例：
 
 ```go
-app := jsonapi.NewApp(crypto.SHA256, jsonapi.StdLogger)
+api := New(crypto.SHA256, jsonapi.StdLogger)
 
-app.HandleFunc("/api", func(ctx *jsonapi.Context) interface{}) {
-	var req map[string]string
+api.HandleFunc("/api", func(ctx *jsonapi.Context) interface{} {
+	var req map[string]interface{}
 
 	ctx.Request(&req)
-	
-	return map[string]string{
+
+	return map[string]interface{}{
 		"value_is": req["value"],
 	}
 })
 
-http.ListenAndServe(":8080", app)
+go http.ListenAndServe(":8080", api)
 ```
 
 防回放机制
