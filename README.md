@@ -16,7 +16,7 @@
 ```go
 api := New(crypto.SHA256, jsonapi.StdLogger)
 
-api.HandleFunc("/api", func(ctx *jsonapi.Context) interface{} {
+api.HandleFunc("/echo", func(ctx *jsonapi.Context) interface{} {
 	var req map[string]interface{}
 
 	ctx.Request(&req)

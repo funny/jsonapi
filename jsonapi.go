@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -153,7 +154,7 @@ func (ctx *Context) Verify(key string, timeout int) {
 		if err != nil {
 			ctx.Fatal("HTTP header 't' not a number", err)
 		}
-		if int64(timeVal+timeout) > time.Now().UTC().Unix() {
+		if timeVal+timeout < Now() {
 			ctx.Fatal("Request expired")
 		}
 	}
@@ -162,18 +163,83 @@ func (ctx *Context) Verify(key string, timeout int) {
 		if ctx.msg == nil {
 			ctx.Fatal("ctx.msg == nil")
 		}
-		signature := ctx.request.Header.Get("s")
-		sigData, err := base64.StdEncoding.DecodeString(signature)
+		sigHead := ctx.request.Header.Get("s")
+		sigData, err := base64.StdEncoding.DecodeString(sigHead)
 		if err != nil {
 			ctx.Fatal("HTTP header 's' not base64 string", err)
 		}
-		hash := ctx.hash.New()
-		hash.Write([]byte(key))
-		hash.Write([]byte(timeStr))
-		hash.Write([]byte(ctx.request.URL.Path))
-		hash.Write(ctx.msg)
-		if !bytes.Equal([]byte(sigData), hash.Sum(nil)) {
+		sigGood := signature(
+			ctx.hash,
+			[]byte(key),
+			[]byte(timeStr),
+			[]byte(ctx.request.URL.Path),
+			ctx.msg,
+		)
+		if !bytes.Equal([]byte(sigData), sigGood) {
 			ctx.Fatal("Signature validate failed")
 		}
 	}
+}
+
+func signature(hash crypto.Hash, key, time, path, msg []byte) []byte {
+	h := hash.New()
+	h.Write(key)
+	h.Write(time)
+	h.Write(path)
+	h.Write(msg)
+	return h.Sum(nil)
+}
+
+func NewRequest(method, urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	reqObj, err := http.NewRequest(method, urlStr, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	switch method {
+	case "GET":
+		reqObj.URL.RawQuery = string(reqJSON)
+	case "POST":
+		reqObj.Body = ioutil.NopCloser(bytes.NewReader(reqJSON))
+	default:
+		return nil, errors.New("JsonAPI unsupported request method")
+	}
+
+	if hash != 0 {
+		timeStr := strconv.Itoa(time)
+		sigData := signature(
+			hash,
+			[]byte(key),
+			[]byte(timeStr),
+			[]byte(reqObj.URL.Path),
+			reqJSON,
+		)
+		sigHead := base64.StdEncoding.EncodeToString(sigData)
+		reqObj.Header.Add("t", timeStr)
+		reqObj.Header.Add("s", sigHead)
+	}
+
+	return reqObj, nil
+}
+
+func Do(client *http.Client, req *http.Request, rsp interface{}) error {
+	httpRsp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	var data bytes.Buffer
+	io.Copy(&data, httpRsp.Body)
+	httpRsp.Body.Close()
+
+	return json.Unmarshal(data.Bytes(), rsp)
+}
+
+func Now() int {
+	return int(time.Now().UTC().Unix())
 }
