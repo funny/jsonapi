@@ -24,7 +24,7 @@ func init() {
 
 		ctx.Request(&req)
 
-		ctx.Verify("123", 3)
+		ctx.Verify("mykey", 3)
 
 		return map[string]int{
 			"value_is": req["value"],
@@ -35,7 +35,7 @@ func init() {
 }
 
 func Test_Get(t *testing.T) {
-	req, err := NewRequest("GET", "http://localhost:8080/echo", map[string]int{
+	req, err := Get("http://localhost:8080/echo", map[string]int{
 		"value": 123,
 	}, NoHash, NoKey, NoTimeout)
 	if err != nil {
@@ -54,7 +54,7 @@ func Test_Get(t *testing.T) {
 }
 
 func Test_Post(t *testing.T) {
-	req, err := NewRequest("POST", "http://localhost:8080/echo", map[string]int{
+	req, err := Post("http://localhost:8080/echo", map[string]int{
 		"value": 123,
 	}, NoHash, NoKey, NoTimeout)
 	if err != nil {
@@ -73,9 +73,9 @@ func Test_Post(t *testing.T) {
 }
 
 func Test_VerifyGet(t *testing.T) {
-	req, err := NewRequest("GET", "http://localhost:8080/verify", map[string]int{
+	req, err := Get("http://localhost:8080/verify", map[string]int{
 		"value": 123,
-	}, crypto.SHA256, "123", Now())
+	}, crypto.SHA256, "mykey", Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,9 +92,9 @@ func Test_VerifyGet(t *testing.T) {
 }
 
 func Test_VerifyPost(t *testing.T) {
-	req, err := NewRequest("POST", "http://localhost:8080/verify", map[string]int{
+	req, err := Post("http://localhost:8080/verify", map[string]int{
 		"value": 123,
-	}, crypto.SHA256, "123", Now())
+	}, crypto.SHA256, "mykey", Now())
 	if err != nil {
 		t.Fatal(err)
 	}

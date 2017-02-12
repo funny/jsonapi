@@ -196,7 +196,15 @@ func signature(hash crypto.Hash, key, time, path, msg []byte) []byte {
 	return h.Sum(nil)
 }
 
-func NewRequest(method, urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
+func Get(urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
+	return newRequest("GET", urlStr, req, hash, key, time)
+}
+
+func Post(urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
+	return newRequest("POST", urlStr, req, hash, key, time)
+}
+
+func newRequest(method, urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
 	reqJSON, err := json.Marshal(req)
 	if err != nil {
 		return nil, err

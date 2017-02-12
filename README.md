@@ -32,15 +32,9 @@ go http.ListenAndServe(":8080", api)
 示例 - 发送请求：
 
 ```go
-req, err := jsonapi.NewRequest(
-	"GET", "http://localhost:8080/echo", 
-	map[string]int{
-		"value": 123,
-	},
-	jsonapi.NoHash,
-	jsonapi.NoKey,
-	jsonapi.NoTimeout,
-)
+req, err := jsonapi.Get("http://localhost:8080/echo", map[string]int{
+	"value": 123,
+}, jsonapi.NoHash, jsonapi.NoKey, jsonapi.NoTimeout)
 if err != nil {
 	t.Fatal(err)
 }
@@ -66,7 +60,7 @@ api.HandleFunc("/verify", func(ctx *jsonapi.Context) interface{} {
 
 	ctx.Request(&req)
 
-	ctx.Verify("123", 3)
+	ctx.Verify("mykey", 3)
 
 	return map[string]int{
 		"value_is": req["value"],
@@ -79,15 +73,9 @@ go http.ListenAndServe(":8080", api)
 示例 - 发送请求并签名：
 
 ```go
-req, err := jsonapi.NewRequest(
-	"GET", "http://localhost:8080/verify", 
-	map[string]int{
-		"value": 123,
-	},
-	crypto.SHA256,
-	"123",
-	jsonapi.Now(),
-)
+req, err := jsonapi.Get("http://localhost:8080/verify", map[string]int{
+	"value": 123,
+}, crypto.SHA256, "mykey", jsonapi.Now())
 if err != nil {
 	t.Fatal(err)
 }
