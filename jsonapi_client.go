@@ -13,6 +13,7 @@ import (
 )
 
 type Request struct {
+	method  string
 	reqObj  *http.Request
 	reqJSON []byte
 }
@@ -36,16 +37,7 @@ func newRequest(method, urlStr string, req interface{}) (*Request, error) {
 		return nil, err
 	}
 
-	switch method {
-	case "GET":
-		reqObj.URL.RawQuery = string(reqJSON)
-	case "POST":
-		reqObj.Body = ioutil.NopCloser(bytes.NewReader(reqJSON))
-	default:
-		return nil, errors.New("JsonAPI unsupported request method")
-	}
-
-	return &Request{reqObj, reqJSON}, nil
+	return &Request{method, reqObj, reqJSON}, nil
 }
 
 func (r *Request) Signature(hash crypto.Hash, key string, time int) {
@@ -63,6 +55,15 @@ func (r *Request) Signature(hash crypto.Hash, key string, time int) {
 }
 
 func (r *Request) Do(client *http.Client, rsp interface{}) error {
+	switch r.method {
+	case "GET":
+		r.reqObj.URL.RawQuery = string(r.reqJSON)
+	case "POST":
+		r.reqObj.Body = ioutil.NopCloser(bytes.NewReader(r.reqJSON))
+	default:
+		return errors.New("JsonAPI unsupported request method")
+	}
+
 	rspObj, err := client.Do(r.reqObj)
 	if err != nil {
 		return err
