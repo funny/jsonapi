@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -69,9 +68,7 @@ func (r *Request) Do(client *http.Client, rsp interface{}) error {
 		return err
 	}
 
-	var data bytes.Buffer
-	io.Copy(&data, rspObj.Body)
+	err = json.NewDecoder(rspObj.Body).Decode(rsp)
 	rspObj.Body.Close()
-
-	return json.Unmarshal(data.Bytes(), rsp)
+	return err
 }
