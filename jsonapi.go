@@ -18,12 +18,6 @@ import (
 
 var StdLogger = NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags))
 
-const NoHash crypto.Hash = 0
-
-const NoKey = ""
-
-const NoTimeout = 0
-
 type Logger interface {
 	Panic(req *http.Request, err interface{})
 	Fatal(req *http.Request, msg string, err error)
@@ -196,15 +190,20 @@ func signature(hash crypto.Hash, key, time, path, msg []byte) []byte {
 	return h.Sum(nil)
 }
 
-func Get(urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
-	return newRequest("GET", urlStr, req, hash, key, time)
+type Request struct {
+	reqObj  *http.Request
+	reqJSON []byte
 }
 
-func Post(urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
-	return newRequest("POST", urlStr, req, hash, key, time)
+func Get(urlStr string, req interface{}) (*Request, error) {
+	return newRequest("GET", urlStr, req)
 }
 
-func newRequest(method, urlStr string, req interface{}, hash crypto.Hash, key string, time int) (*http.Request, error) {
+func Post(urlStr string, req interface{}) (*Request, error) {
+	return newRequest("POST", urlStr, req)
+}
+
+func newRequest(method, urlStr string, req interface{}) (*Request, error) {
 	reqJSON, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -224,32 +223,32 @@ func newRequest(method, urlStr string, req interface{}, hash crypto.Hash, key st
 		return nil, errors.New("JsonAPI unsupported request method")
 	}
 
-	if hash != 0 {
-		timeStr := strconv.Itoa(time)
-		sigData := signature(
-			hash,
-			[]byte(key),
-			[]byte(timeStr),
-			[]byte(reqObj.URL.Path),
-			reqJSON,
-		)
-		sigHead := base64.StdEncoding.EncodeToString(sigData)
-		reqObj.Header.Add("t", timeStr)
-		reqObj.Header.Add("s", sigHead)
-	}
-
-	return reqObj, nil
+	return &Request{reqObj, reqJSON}, nil
 }
 
-func Do(client *http.Client, req *http.Request, rsp interface{}) error {
-	httpRsp, err := client.Do(req)
+func (r *Request) Signature(hash crypto.Hash, key string, time int) {
+	timeStr := strconv.Itoa(time)
+	sigData := signature(
+		hash,
+		[]byte(key),
+		[]byte(timeStr),
+		[]byte(r.reqObj.URL.Path),
+		r.reqJSON,
+	)
+	sigHead := base64.StdEncoding.EncodeToString(sigData)
+	r.reqObj.Header.Set("t", timeStr)
+	r.reqObj.Header.Set("s", sigHead)
+}
+
+func (r *Request) Do(client *http.Client, rsp interface{}) error {
+	rspObj, err := client.Do(r.reqObj)
 	if err != nil {
 		return err
 	}
 
 	var data bytes.Buffer
-	io.Copy(&data, httpRsp.Body)
-	httpRsp.Body.Close()
+	io.Copy(&data, rspObj.Body)
+	rspObj.Body.Close()
 
 	return json.Unmarshal(data.Bytes(), rsp)
 }

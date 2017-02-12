@@ -37,13 +37,13 @@ func init() {
 func Test_Get(t *testing.T) {
 	req, err := Get("http://localhost:8080/echo", map[string]int{
 		"value": 123,
-	}, NoHash, NoKey, NoTimeout)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var rsp map[string]int
-	err = Do(http.DefaultClient, req, &rsp)
+	err = req.Do(http.DefaultClient, &rsp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,13 +56,13 @@ func Test_Get(t *testing.T) {
 func Test_Post(t *testing.T) {
 	req, err := Post("http://localhost:8080/echo", map[string]int{
 		"value": 123,
-	}, NoHash, NoKey, NoTimeout)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var rsp map[string]int
-	err = Do(http.DefaultClient, req, &rsp)
+	err = req.Do(http.DefaultClient, &rsp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,13 +75,15 @@ func Test_Post(t *testing.T) {
 func Test_VerifyGet(t *testing.T) {
 	req, err := Get("http://localhost:8080/verify", map[string]int{
 		"value": 123,
-	}, crypto.SHA256, "mykey", Now())
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	req.Signature(crypto.SHA256, "mykey", Now())
+
 	var rsp map[string]int
-	err = Do(http.DefaultClient, req, &rsp)
+	err = req.Do(http.DefaultClient, &rsp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,13 +96,15 @@ func Test_VerifyGet(t *testing.T) {
 func Test_VerifyPost(t *testing.T) {
 	req, err := Post("http://localhost:8080/verify", map[string]int{
 		"value": 123,
-	}, crypto.SHA256, "mykey", Now())
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	req.Signature(crypto.SHA256, "mykey", Now())
+
 	var rsp map[string]int
-	err = Do(http.DefaultClient, req, &rsp)
+	err = req.Do(http.DefaultClient, &rsp)
 	if err != nil {
 		t.Fatal(err)
 	}
