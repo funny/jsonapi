@@ -80,7 +80,7 @@ go http.ListenAndServe(":8080", api)
 
 ```go
 req, err := jsonapi.NewRequest(
-	"GET", "http://localhost:8080/echo", 
+	"GET", "http://localhost:8080/verify", 
 	map[string]int{
 		"value": 123,
 	},
