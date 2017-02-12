@@ -11,22 +11,96 @@
 用法
 ====
 
-示例：
+示例 - 服务端接口：
 
 ```go
-api := New(crypto.SHA256, jsonapi.StdLogger)
+api := jsonapi.New(crypto.SHA256, jsonapi.StdLogger)
 
 api.HandleFunc("/echo", func(ctx *jsonapi.Context) interface{} {
-	var req map[string]interface{}
+	var req map[string]int
 
 	ctx.Request(&req)
 
-	return map[string]interface{}{
+	return map[string]int{
 		"value_is": req["value"],
 	}
 })
 
 go http.ListenAndServe(":8080", api)
+```
+
+示例 - 发送请求：
+
+```go
+req, err := jsonapi.NewRequest(
+	"GET", "http://localhost:8080/echo", 
+	map[string]int{
+		"value": 123,
+	},
+	jsonapi.NoHash,
+	jsonapi.NoKey,
+	jsonapi.NoTimeout,
+)
+if err != nil {
+	t.Fatal(err)
+}
+
+var rsp map[string]int
+err = jsonapi.Do(http.DefaultClient, req, &rsp)
+if err != nil {
+	t.Fatal(err)
+}
+
+if rsp["value_is"] != 123 {
+	t.Fatal(rsp)
+}
+```
+
+示例 - 服务端验证请求：
+
+```go
+api := jsonapi.New(crypto.SHA256, jsonapi.StdLogger)
+
+api.HandleFunc("/verify", func(ctx *jsonapi.Context) interface{} {
+	var req map[string]int
+
+	ctx.Request(&req)
+
+	ctx.Verify("123", 3)
+
+	return map[string]int{
+		"value_is": req["value"],
+	}
+})
+
+go http.ListenAndServe(":8080", api)
+```
+
+示例 - 发送请求并签名：
+
+```go
+req, err := jsonapi.NewRequest(
+	"GET", "http://localhost:8080/echo", 
+	map[string]int{
+		"value": 123,
+	},
+	crypto.SHA256,
+	"123",
+	jsonapi.Now(),
+)
+if err != nil {
+	t.Fatal(err)
+}
+
+var rsp map[string]int
+err = jsonapi.Do(http.DefaultClient, req, &rsp)
+if err != nil {
+	t.Fatal(err)
+}
+
+if rsp["value_is"] != 123 {
+	t.Fatal(rsp)
+}
 ```
 
 防回放机制

@@ -37,7 +37,7 @@ func init() {
 func Test_Get(t *testing.T) {
 	req, err := NewRequest("GET", "http://localhost:8080/echo", map[string]int{
 		"value": 123,
-	}, 0, "", 0)
+	}, NoHash, NoKey, NoTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func Test_Get(t *testing.T) {
 func Test_Post(t *testing.T) {
 	req, err := NewRequest("POST", "http://localhost:8080/echo", map[string]int{
 		"value": 123,
-	}, 0, "", 0)
+	}, NoHash, NoKey, NoTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}

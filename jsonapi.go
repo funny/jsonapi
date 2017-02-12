@@ -18,6 +18,12 @@ import (
 
 var StdLogger = NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags))
 
+const NoHash crypto.Hash = 0
+
+const NoKey = ""
+
+const NoTimeout = 0
+
 type Logger interface {
 	Panic(req *http.Request, err interface{})
 	Fatal(req *http.Request, msg string, err error)
