@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -56,7 +57,7 @@ func (r *Request) Signature(hash crypto.Hash, key string, time int) {
 func (r *Request) Do(client *http.Client, rsp interface{}) error {
 	switch r.method {
 	case "GET":
-		r.reqObj.URL.RawQuery = string(r.reqJSON)
+		r.reqObj.URL.RawQuery = url.QueryEscape(string(r.reqJSON))
 	case "POST":
 		r.reqObj.Body = ioutil.NopCloser(bytes.NewReader(r.reqJSON))
 	default:
