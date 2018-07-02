@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -22,6 +23,7 @@ func Now() int {
 }
 
 type Logger interface {
+	Debug(req *http.Request)
 	Panic(req *http.Request, err interface{})
 	Fatal(req *http.Request, msg string, err error)
 }
@@ -29,22 +31,29 @@ type Logger interface {
 var _ Logger = (*DefaultLogger)(nil)
 
 type DefaultLogger struct {
-	logger *log.Logger
+	logger  *log.Logger
+	IsDebug bool
 }
 
 func NewDefaultLogger(logger *log.Logger) *DefaultLogger {
-	return &DefaultLogger{logger}
+	return &DefaultLogger{logger: logger, IsDebug: false}
+}
+
+func (l *DefaultLogger) Debug(r *http.Request) {
+	if l.IsDebug {
+		l.logger.Printf("[DEBUG] %s %s", r.Method, r.RequestURI)
+	}
 }
 
 func (l *DefaultLogger) Panic(r *http.Request, err interface{}) {
-	l.logger.Printf("%s %s JsonAPI recover a panic: %v", r.Method, r.RequestURI, err)
+	l.logger.Printf("[PANIC] %s %s JsonAPI recover a panic: %v", r.Method, r.RequestURI, err)
 }
 
 func (l *DefaultLogger) Fatal(r *http.Request, msg string, err error) {
 	if err != nil {
-		l.logger.Printf("%s %s %s: %s", r.Method, r.RequestURI, msg, err)
+		l.logger.Printf("[FATAL] %s %s %s: %s", r.Method, r.RequestURI, msg, err)
 	} else {
-		l.logger.Printf("%s %s: %s", r.Method, r.RequestURI, msg)
+		l.logger.Printf("[FATAL] %s %s: %s", r.Method, r.RequestURI, msg)
 	}
 }
 
@@ -57,6 +66,7 @@ var _ Handler = (HandlerFunc)(nil)
 type HandlerFunc func(ctx *Context) interface{}
 
 func (f HandlerFunc) ServeJSON(ctx *Context) interface{} {
+	ctx.logger.Debug(ctx.request)
 	return f(ctx)
 }
 
@@ -68,12 +78,15 @@ type API struct {
 	logger Logger
 }
 
+var gAPI *API
+
 func New(hash crypto.Hash, logger Logger) *API {
-	return &API{
+	gAPI = &API{
 		hash:   hash,
 		logger: logger,
 		mux:    http.NewServeMux(),
 	}
+	return gAPI
 }
 
 func (api *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -143,10 +156,22 @@ func (ctx *Context) Request(req interface{}) {
 		ctx.msg = buf.Bytes()
 	}
 
+	if len(ctx.msg) == 0 {
+		return
+	}
+
 	err := json.Unmarshal(ctx.msg, req)
 	if err != nil {
-		ctx.Fatal("JSON unmarshal failed", err)
+		ctx.Fatal(fmt.Sprintf("JSON unmarshal failed, msg: %s", string(ctx.msg)), err)
 	}
+}
+
+func (ctx *Context) HttpRequest() *http.Request {
+	return ctx.request
+}
+
+func (ctx *Context) HttpResponseWriter() http.ResponseWriter {
+	return ctx.response
 }
 
 func (ctx *Context) Verify(key string, timeout int) {
