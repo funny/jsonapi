@@ -170,7 +170,7 @@ func (ctx *Context) HttpRequest() *http.Request {
 	return ctx.request
 }
 
-func (ctx *Context) HttpResponseWriter() http.ResponseWriter {
+func (ctx *Context) HttpResponse() http.ResponseWriter {
 	return ctx.response
 }
 
