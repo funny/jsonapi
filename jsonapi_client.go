@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -55,10 +56,13 @@ func (r *Request) Signature(hash crypto.Hash, key string, time int) {
 }
 
 func (r *Request) Do(client *http.Client, rsp interface{}) error {
+	r.reqObj.Header.Set("content-type", "application/json")
+
 	switch r.method {
 	case "GET":
 		r.reqObj.URL.RawQuery = url.QueryEscape(string(r.reqJSON))
 	case "POST":
+		r.reqObj.ContentLength = int64(len(r.reqJSON))
 		r.reqObj.Body = ioutil.NopCloser(bytes.NewReader(r.reqJSON))
 	default:
 		return errors.New("JsonAPI unsupported request method")
@@ -69,7 +73,26 @@ func (r *Request) Do(client *http.Client, rsp interface{}) error {
 		return err
 	}
 
+	if rspObj.StatusCode == http.StatusInternalServerError {
+		rsp = new(JsonAPIError)
+	}
+
 	err = json.NewDecoder(rspObj.Body).Decode(rsp)
 	rspObj.Body.Close()
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	switch rspObj.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusInternalServerError:
+		if e, ok := rsp.(*JsonAPIError); ok {
+			return fmt.Errorf("internal server error : %s", e.Err)
+		}
+		return errors.New("unknow error")
+	default:
+		return fmt.Errorf("unknow error code %d", rspObj.StatusCode)
+	}
 }

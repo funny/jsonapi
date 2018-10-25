@@ -22,6 +22,10 @@ func Now() int {
 	return int(time.Now().UTC().Unix())
 }
 
+type JsonAPIError struct {
+	Err string `json:"error"`
+}
+
 type Logger interface {
 	Debug(req *http.Request)
 	Panic(req *http.Request, err interface{})
@@ -102,7 +106,7 @@ func (api *API) Handle(path string, handler Handler) {
 		defer func() {
 			if err := recover(); err != nil && err != FatalError {
 				api.logger.Panic(r, err)
-				http.Error(w, `{"error":"unknow"}`, 500)
+				http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
 			}
 		}()
 
@@ -121,11 +125,12 @@ func (api *API) Handle(path string, handler Handler) {
 var FatalError = errors.New("JsonAPI Fatal")
 
 type Context struct {
-	msg      []byte
-	hash     crypto.Hash
-	logger   Logger
-	request  *http.Request
-	response http.ResponseWriter
+	msg        []byte
+	hash       crypto.Hash
+	logger     Logger
+	request    *http.Request
+	response   http.ResponseWriter
+	isBodyRead bool
 }
 
 func (ctx *Context) Fatal(msg string, err ...error) {
@@ -134,32 +139,35 @@ func (ctx *Context) Fatal(msg string, err ...error) {
 	} else {
 		ctx.logger.Fatal(ctx.request, msg, nil)
 	}
-	http.Error(ctx.response, `{"error":"`+msg+`"}`, 500)
+	http.Error(ctx.response, `{"error":"`+msg+`"}`, http.StatusInternalServerError)
 	panic(FatalError)
 }
 
 func (ctx *Context) Request(req interface{}) {
-	switch ctx.request.Method {
-	case "GET":
-		query, err := url.QueryUnescape(ctx.request.URL.RawQuery)
-		if err != nil {
-			ctx.Fatal("Invalid query string", err)
+	if !ctx.isBodyRead {
+		switch ctx.request.Method {
+		case "GET":
+			query, err := url.QueryUnescape(ctx.request.URL.RawQuery)
+			if err != nil {
+				ctx.Fatal("Invalid query string", err)
+			}
+			ctx.msg = []byte(query)
+		case "POST":
+			var buf bytes.Buffer
+			_, err := io.Copy(&buf, ctx.request.Body)
+			if err != nil {
+				ctx.Fatal("Bad request", err)
+			}
+			ctx.request.Body.Close()
+			ctx.msg = buf.Bytes()
 		}
-		ctx.msg = []byte(query)
-	case "POST":
-		var buf bytes.Buffer
-		_, err := io.Copy(&buf, ctx.request.Body)
-		if err != nil {
-			ctx.Fatal("Bad request", err)
-		}
-		ctx.request.Body.Close()
-		ctx.msg = buf.Bytes()
+
+		ctx.isBodyRead = true
 	}
 
 	if len(ctx.msg) == 0 {
 		return
 	}
-
 	err := json.Unmarshal(ctx.msg, req)
 	if err != nil {
 		ctx.Fatal(fmt.Sprintf("JSON unmarshal failed, msg: %s", string(ctx.msg)), err)
@@ -172,6 +180,10 @@ func (ctx *Context) HttpRequest() *http.Request {
 
 func (ctx *Context) HttpResponse() http.ResponseWriter {
 	return ctx.response
+}
+
+func (ctx *Context) QueryString() string {
+	return string(ctx.msg)
 }
 
 func (ctx *Context) Verify(key string, timeout int) {
